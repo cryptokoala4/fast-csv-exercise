@@ -5,19 +5,16 @@ var fs               = require('fs'); // require the fs, filesystem module
 // initial valuables for customers
 // errors already handled by fs library
 var streamCustomers  = fs.createReadStream("csv/customers.csv");
+var customersError   = false;
 var customersDone    = false;
 var customers        = {};
 
 // initial valuables for policies
 // errors already handled by fs library
 var streamPolicies   = fs.createReadStream("csv/policies.csv");
+var policiesError    = false;
 var policiesDone     = false;
 var policies         = {};
-
-// initializing the report csv file
-var timeZoneOffset = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
-var localTime = (new Date(Date.now() - timeZoneOffset)).toISOString().slice(0,-5).replace("T", "-"); // splice out milliseconds and replace "T" with a "-" to make it more readable
-var reportCSV       = fs.createWriteStream("report-" + localTime + ".csv");
 
 // start streaming data from customers.csv
 csv.fromStream(streamCustomers, {headers : ["id", "firstName", "lastName", "dob"]})
@@ -27,16 +24,48 @@ csv.fromStream(streamCustomers, {headers : ["id", "firstName", "lastName", "dob"
       dob: data.dob
     };
   })
+  .validate(function(data){
+    // If validation fail, return false. If validation pass, return true
+    // Check to see if any column is missing
+    if (!!data.id || !!data.firstName || !!data.lastName || !!data.dob) {
+      return true;
+    } else {
+      customersError = true;
+      return false;
+    }
+  })
+  .on("data-invalid", function(data){
+    console.log("-----Customer Row Has An Error-----");
+    console.log(data);
+  })
   .on("end", function(){
     // because streaming is asynchronous, we don't know which stream will finish last
     // therefore we have two boolean variable representing each stream
     // and generateReport only when both stream is completed
+    if (customersError) {
+      console.log("Please fix errors in customers.csv in order to proceed");
+    } else {
     customersDone = true;
     generateReport();
+    }
   });
 
 // start streaming data from policies.csv
-csv.fromStream(streamPolicies, {headers : ["policyNumber", "id", "insuranceType"]})
+csv.fromStream(streamPolicies  , {headers : ["policyNumber", "id", "insuranceType"]})
+  .validate(function(data){
+    // If validation fail, return false. If validation pass, return true
+    // Check to see if any column is missing
+    if (!!data.policyNumber || !!data.id || !!data.insuranceType) {
+      return true;
+    } else {
+      policiesError = true;
+      return false;
+    }
+  })
+  .on("data-invalid", function(data){
+    console.log("-----Policy Row Has An Error-----");
+    console.log(data);
+  })
   .on("data", function(data){
     policies[data.id] = {
       policyNumber: data.policyNumber,
@@ -47,8 +76,12 @@ csv.fromStream(streamPolicies, {headers : ["policyNumber", "id", "insuranceType"
     // because streaming is asynchronous, we don't know which stream will finish last
     // therefore we have two boolean variable representing each stream
     // and generateReport only when both stream is completed
-    policiesDone = true;
-    generateReport();
+    if (policiesError) {
+      console.log("Please fix errors in polices.csv in order to proceed");
+    } else {
+      policiesDone = true;
+      generateReport();
+    }
   });
 
 function generateReport () {
@@ -77,6 +110,7 @@ function generateReport () {
         insuranceType: insuranceType
       });
     }
+    // console.log(reports)
 
     // validate reports for quality control
     // generate csv when all test pass
@@ -96,6 +130,11 @@ function validateReport (reports) {
 }
 
 function generateCSV (reports) {
+  // initializing the report csv file
+  var timeZoneOffset  = (new Date()).getTimezoneOffset() * 60000; // offset in milliseconds
+  var localTime       = (new Date(Date.now() - timeZoneOffset)).toISOString().slice(0,-5).replace("T", "-"); // splice out milliseconds
+  var reportCSV       = fs.createWriteStream("report-" + localTime + ".csv");
+
   csv
     .write(reports, {headers: true})
     .on("end", function(){
