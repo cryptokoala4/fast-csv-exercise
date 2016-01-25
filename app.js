@@ -43,7 +43,7 @@ csv.fromStream(streamCustomers, {headers : ["id", "firstName", "lastName", "dob"
     // because streaming is asynchronous, we don't know which stream will finish last
     // therefore we have two boolean variable representing each stream
     // and generateReport only when both stream is completed
-    console.log(customers)
+    // console.log(customers)
     if (customersError) {
       console.log("Please fix errors in customers.csv in order to proceed");
     } else {
@@ -85,7 +85,7 @@ csv.fromStream(streamPolicies  , {headers : ["policyNumber", "id", "insuranceTyp
     // because streaming is asynchronous, we don't know which stream will finish last
     // therefore we have two boolean variable representing each stream
     // and generateReport only when both stream is completed
-    console.log(policies)
+    // console.log(policies)
     if (policiesError) {
       console.log("Please fix errors in polices.csv in order to proceed");
     } else {
